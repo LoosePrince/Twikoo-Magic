@@ -1,1 +1,492 @@
-owo表情
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表情包检索</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --text: #1f2328;
+      --muted: #5f6b7a;
+      --line: #e5e7eb;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(1200px, 94vw);
+      margin: 24px auto 40px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 26px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .group-filter {
+      position: relative;
+    }
+
+    .group-toggle {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 150px;
+      text-align: left;
+    }
+
+    .group-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 20;
+      width: min(360px, 86vw);
+      max-height: 320px;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      padding: 10px;
+      display: none;
+    }
+
+    .group-panel.open {
+      display: block;
+    }
+
+    .group-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .group-action-btn {
+      flex: 1;
+      padding: 6px 8px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .group-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .group-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      line-height: 1.3;
+      padding: 2px 0;
+    }
+
+    .search {
+      flex: 1 1 360px;
+      min-width: 220px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .search:focus {
+      outline: 2px solid #bfdbfe;
+      border-color: #93c5fd;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 220px;
+      overflow: hidden;
+    }
+
+    .preview {
+      height: 108px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #d1d5db;
+      border-radius: 10px;
+      background: #fafafa;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .preview img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    .line {
+      font-size: 13px;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      line-height: 1.4;
+    }
+
+    .label {
+      color: var(--muted);
+      margin-right: 6px;
+    }
+
+    .actions {
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 6px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fff;
+      color: var(--text);
+    }
+
+    button:hover {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+      color: var(--primary-hover);
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 16px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 12px;
+      padding: 8px 12px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all .2s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <h1>表情包检索</h1>
+    <div class="toolbar">
+      <input id="searchInput" class="search" type="search" placeholder="输入关键词：text / 标识 / 路径 / 分组">
+      <div id="groupFilter" class="group-filter">
+        <button id="groupToggle" type="button" class="group-toggle">分组筛选：全部</button>
+        <div id="groupPanel" class="group-panel">
+          <div class="group-actions">
+            <button id="selectAllGroups" type="button" class="group-action-btn">全选</button>
+            <button id="clearGroups" type="button" class="group-action-btn">清空</button>
+          </div>
+          <div id="groupList" class="group-list"></div>
+        </div>
+      </div>
+      <div id="meta" class="meta">加载中...</div>
+    </div>
+    <section id="grid" class="grid"></section>
+  </main>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const state = {
+      all: [],
+      filtered: [],
+      groups: [],
+      selectedGroups: new Set()
+    };
+
+    const grid = document.getElementById("grid");
+    const searchInput = document.getElementById("searchInput");
+    const meta = document.getElementById("meta");
+    const toast = document.getElementById("toast");
+    const groupFilter = document.getElementById("groupFilter");
+    const groupToggle = document.getElementById("groupToggle");
+    const groupPanel = document.getElementById("groupPanel");
+    const groupList = document.getElementById("groupList");
+    const selectAllGroups = document.getElementById("selectAllGroups");
+    const clearGroups = document.getElementById("clearGroups");
+
+    function toIdentifier(text) {
+      return `[:${text}]`;
+    }
+
+    function toImagePath(iconUrl) {
+      try {
+        const parsed = new URL(iconUrl, window.location.href);
+        const decodedPath = decodeURIComponent(parsed.pathname);
+        const marker = "/image/";
+        const markerIndex = decodedPath.toLowerCase().indexOf(marker);
+        if (markerIndex >= 0) {
+          const relative = decodedPath.slice(markerIndex + marker.length);
+          return relative.split("/").filter(Boolean).join("\\");
+        }
+        return decodedPath.replace(/^\/+/, "").split("/").filter(Boolean).join("\\");
+      } catch (error) {
+        const cleaned = iconUrl.replace(/^[a-zA-Z]+:\/\/[^/]+\//, "");
+        return decodeURIComponent(cleaned).split("/").filter(Boolean).join("\\");
+      }
+    }
+
+    function normalizeData(raw) {
+      const rows = [];
+      for (const [groupName, groupValue] of Object.entries(raw)) {
+        if (!groupValue || !Array.isArray(groupValue.container)) {
+          continue;
+        }
+        for (const item of groupValue.container) {
+          if (!item || typeof item.text !== "string" || typeof item.icon !== "string") {
+            continue;
+          }
+          rows.push({
+            group: groupName,
+            text: item.text,
+            icon: item.icon,
+            identifier: toIdentifier(item.text),
+            imagePath: toImagePath(item.icon)
+          });
+        }
+      }
+      return rows;
+    }
+
+    function render(list) {
+      meta.textContent = `共 ${state.all.length} 个表情，当前显示 ${list.length} 个`;
+      if (!list.length) {
+        grid.innerHTML = "<div class='card'><div class='line'>没有匹配结果，请尝试其他关键词。</div></div>";
+        return;
+      }
+
+      grid.innerHTML = list.map(item => `
+        <article class="card">
+          <div class="preview">
+            <img src="${item.icon}" alt="${item.text}" loading="lazy" referrerpolicy="no-referrer">
+          </div>
+          <div class="line"><span class="label">分组</span>${escapeHtml(item.group)}</div>
+          <div class="line"><span class="label">text</span>${escapeHtml(item.text)}</div>
+          <div class="line"><span class="label">标识</span>${escapeHtml(item.identifier)}</div>
+          <div class="line"><span class="label">路径</span>${escapeHtml(item.imagePath)}</div>
+          <div class="actions">
+            <button data-copy="${escapeAttr(item.icon)}">复制链接</button>
+            <button data-copy="${escapeAttr(item.identifier)}">复制标识</button>
+            <button data-copy="${escapeAttr(item.imagePath)}">复制路径</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function updateGroupToggleText() {
+      const total = state.groups.length;
+      const selected = state.selectedGroups.size;
+      if (selected === 0 || selected === total) {
+        groupToggle.textContent = "分组筛选：全部";
+      } else {
+        groupToggle.textContent = `分组筛选：已选 ${selected}/${total}`;
+      }
+    }
+
+    function renderGroupFilter() {
+      groupList.innerHTML = state.groups.map((group, index) => {
+        const checked = state.selectedGroups.has(group) ? "checked" : "";
+        const id = `group_${index}`;
+        return `
+          <label class="group-item" for="${id}">
+            <input id="${id}" type="checkbox" data-group="${escapeAttr(group)}" ${checked}>
+            <span>${escapeHtml(group)}</span>
+          </label>
+        `;
+      }).join("");
+      updateGroupToggleText();
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str);
+    }
+
+    function applyFilters() {
+      const query = searchInput.value.trim().toLowerCase();
+      const totalGroups = state.groups.length;
+      const selectedCount = state.selectedGroups.size;
+      const useGroupFilter = selectedCount > 0 && selectedCount < totalGroups;
+
+      state.filtered = state.all.filter(item => {
+        const matchGroup = !useGroupFilter || state.selectedGroups.has(item.group);
+        if (!matchGroup) {
+          return false;
+        }
+        if (!query) {
+          return true;
+        }
+        const bucket = `${item.group} ${item.text} ${item.identifier} ${item.imagePath} ${item.icon}`.toLowerCase();
+        return bucket.includes(query);
+      });
+      render(state.filtered);
+    }
+
+    async function copyText(value) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 1200);
+    }
+
+    async function init() {
+      try {
+        const response = await fetch("./owo.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`加载失败: ${response.status}`);
+        }
+        const raw = await response.json();
+        state.all = normalizeData(raw);
+        state.groups = [...new Set(state.all.map(item => item.group))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+        state.selectedGroups = new Set(state.groups);
+        state.filtered = [...state.all];
+        renderGroupFilter();
+        render(state.filtered);
+      } catch (error) {
+        grid.innerHTML = `<div class="card"><div class="line">读取 owo.json 失败：${escapeHtml(String(error.message || error))}</div></div>`;
+        meta.textContent = "加载失败";
+      }
+    }
+
+    searchInput.addEventListener("input", applyFilters);
+
+    groupToggle.addEventListener("click", () => {
+      groupPanel.classList.toggle("open");
+    });
+
+    groupList.addEventListener("change", (event) => {
+      const input = event.target.closest("input[type='checkbox'][data-group]");
+      if (!input) {
+        return;
+      }
+      const groupName = input.getAttribute("data-group") || "";
+      if (input.checked) {
+        state.selectedGroups.add(groupName);
+      } else {
+        state.selectedGroups.delete(groupName);
+      }
+      updateGroupToggleText();
+      applyFilters();
+    });
+
+    selectAllGroups.addEventListener("click", () => {
+      state.selectedGroups = new Set(state.groups);
+      renderGroupFilter();
+      applyFilters();
+    });
+
+    clearGroups.addEventListener("click", () => {
+      state.selectedGroups.clear();
+      renderGroupFilter();
+      applyFilters();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!groupFilter.contains(event.target)) {
+        groupPanel.classList.remove("open");
+      }
+    });
+
+    grid.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-copy]");
+      if (!button) {
+        return;
+      }
+      const value = button.getAttribute("data-copy") || "";
+      try {
+        await copyText(value);
+        showToast("复制成功");
+      } catch (error) {
+        showToast("复制失败");
+      }
+    });
+
+    init();
+  </script>
+</body>
+
+</html>
